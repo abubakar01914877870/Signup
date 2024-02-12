@@ -15,9 +15,8 @@ from selenium.webdriver.support import expected_conditions as EC
 excel_data_df = pandas.read_excel('data.xlsx', sheet_name='Sheet1')
 number_of_row, number_of_column = excel_data_df.shape
 
-
 BASE_URL = "https://my.sideline.com/#/login"
-MAX_WAIT_TIME = 10
+MAX_WAIT_TIME = 15
 CC_NUMBER_1 = "4232"
 CC_NUMBER_2 = "2320"
 CC_NUMBER_3 = "4502"
@@ -43,6 +42,8 @@ cc_exp_xpath = "//input[@id='cc-exp']"
 cc_cvv_xpath = "//input[@id='cc-csc']"
 add_cc_xpath = "//span[text()='Add credit card']"
 billing_zip_xpath = "//input[@id='billing-zip']"
+message_cc_added_xpath = "//div[text()='Credit Card Added']"
+errorTeamConversionMessage_xpath = "//div[@id='errorTeamConversionMessage']"
 
 
 # Helper function
@@ -82,13 +83,36 @@ def find_element_with_exception_xpath(
             f"Element with XPath '{xpath_locator}' not found!"
         )
 
+
+def check_element_visibility(
+        driver: WebDriver,
+        xpath_locator: str,
+) -> WebElement:
+    try:
+        wait = WebDriverWait(driver, MAX_WAIT_TIME)  # Customize timeout as needed
+
+        return wait.until(
+            EC.visibility_of_element_located((By.XPATH, xpath_locator))
+        )
+
+    except TimeoutException:
+        raise TimeoutException(
+            f"Element with XPath '{xpath_locator}' not found within the timeout!"
+        )
+
+    except NoSuchElementException:
+        raise NoSuchElementException(
+            f"Element with XPath '{xpath_locator}' not found!"
+        )
+
+
 # print whole sheet data
 print(number_of_row, number_of_column)
 # print(excel_data_df.iloc[0, 1])
 
 
 result = []
-for row in range(number_of_row):
+for row in range(2):
     try:
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
         driver.maximize_window()
@@ -154,6 +178,17 @@ for row in range(number_of_row):
         add_cc_button: WebElement = find_element_with_exception_xpath(driver, add_cc_xpath)
         add_cc_button.click()
 
+        driver.switch_to.parent_frame()
+
+        message_cc_added = check_element_visibility(driver, message_cc_added_xpath)
+
+        freeTrial_ok_2: WebElement = check_element_visibility(driver, add_trial_ok_xpath)
+        freeTrial_ok_2.click()
+
+        errorTeamConversionMessage = WebDriverWait(driver, MAX_WAIT_TIME).until(
+            EC.visibility_of_element_located((By.XPATH, errorTeamConversionMessage_xpath))
+        )
+
         result.append({"Result": "Passed", "Number": phone_number})
         time.sleep(3)
         driver.quit()
@@ -169,4 +204,3 @@ for row in range(number_of_row):
 # Updating excel
 output = pd.DataFrame(result, columns=["Number", "Result"])
 output.to_excel("output.xlsx")
-
