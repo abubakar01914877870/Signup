@@ -1,25 +1,28 @@
 import time
+
 import pandas
 import pandas as pd
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.webdriver import WebDriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.edge.service import Service as EdgeService
-from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.firefox import GeckoDriverManager
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium import webdriver
+from selenium.webdriver.edge.service import Service as EdgeService
 from webdriver_manager.microsoft import EdgeChromiumDriverManager
+from selenium import webdriver
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from webdriver_manager.firefox import GeckoDriverManager
 
 excel_data_df = pandas.read_excel('data.xlsx', sheet_name='Sheet1')
 number_of_row, number_of_column = excel_data_df.shape
 
 BASE_URL = "https://my.sideline.com/#/login"
-MAX_WAIT_TIME = 20
+MAX_WAIT_TIME = 15
 CC_NUMBER_1 = "4232"
 CC_NUMBER_2 = "2320"
 CC_NUMBER_3 = "4502"
@@ -47,9 +50,11 @@ add_cc_xpath = "//span[text()='Add credit card']"
 billing_zip_xpath = "//input[@id='billing-zip']"
 message_cc_added_xpath = "//div[text()='Credit Card Added']"
 errorTeamConversionMessage_xpath = "//div[@id='errorTeamConversionMessage']"
+welcome_back_xpath = "//div[text()='Welcome back']"
 
 
 # Helper function
+
 def get_driver(browser_name: str) -> WebDriver:
     if browser_name.lower() == "chrome":
         return webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
@@ -59,13 +64,6 @@ def get_driver(browser_name: str) -> WebDriver:
         return webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()))
     else:
         return webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
-
-
-def write_to_txt_result(filename, content):
-    with open(filename, "a") as file:
-        if file.tell() > 0:
-            file.write("\n")
-        file.write(content)
 
 
 def find_element_with_exception_xpath(
@@ -133,16 +131,15 @@ print(number_of_row, number_of_column)
 
 
 result = []
-for row in range(number_of_row):
+for row in range(1):
     try:
-        password = str(excel_data_df.iloc[row, 1])
-        driver = get_driver("chrome")  # browser name "chrome" or "firefox", "edge"
+        driver = get_driver("chrome")
         # driver.maximize_window()
         driver.get(BASE_URL)
         phone_number = str(excel_data_df.iloc[row, 0])
         input_phone_number: WebElement = find_element_with_exception_xpath(driver, phone_number_xpath)
         input_phone_number.send_keys(phone_number)
-        time.sleep(2)
+
         next_button: WebElement = find_element_with_exception_xpath(driver, next_button_xpath)
         next_button.click()
 
@@ -165,12 +162,13 @@ for row in range(number_of_row):
         email_input: WebElement = find_element_with_exception_xpath(driver, email_xpath)
         email_input.send_keys(email)
 
+        password = str(excel_data_df.iloc[row, 1])
         password_input: WebElement = find_element_with_exception_xpath(driver, password_xpath)
         password_input.send_keys(password)
-        time.sleep(2)
+
         freeTrial_button: WebElement = find_element_with_exception_xpath(driver, freeTrial_button_xpath)
         freeTrial_button.click()
-        time.sleep(2)
+
         freeTrial_ok: WebElement = find_element_with_exception_xpath(driver, add_trial_ok_xpath)
         freeTrial_ok.click()
 
@@ -188,7 +186,6 @@ for row in range(number_of_row):
         cc_exp_input: WebElement = find_element_with_exception_xpath(driver, cc_exp_xpath)
         cc_exp_input.click()
         cc_exp_input.send_keys(CC_EXP_MONTH)
-        time.sleep(2)
         cc_exp_input.send_keys(CC_EXP_YEAR)
 
         cc_cvv_input: WebElement = find_element_with_exception_xpath(driver, cc_cvv_xpath)
@@ -211,20 +208,18 @@ for row in range(number_of_row):
             EC.visibility_of_element_located((By.XPATH, errorTeamConversionMessage_xpath))
         )
 
-        result.append({"Number": phone_number, "Password": password, "Result": "Passed"})
-        write_to_txt_result("result.csv", f"{phone_number}, {password}, Passed")
-        print(f"Row: {row} Number: {phone_number}, Password: {password}, Result: Passed")
+        result.append({"Result": "Passed", "Number": phone_number})
         time.sleep(3)
         driver.quit()
     except Exception as e:
         # Saving screenshot
         driver.save_screenshot(f"screenshot//{row}_row_is_failed.png")
-        result.append({"Number": phone_number, "Password": password, "Result": "Failed"})
-        write_to_txt_result("result.csv", f"{phone_number}, {password}, Failed")
-        print(f"Row: {row} Number: {phone_number}, Password: {password}, Result: Failed")
+        result.append({"Result": "Failed", "Number": phone_number})
+
+        print(f"Row number {row} is failed")
         print(e)
 
         driver.quit()
 # Updating excel
-output = pd.DataFrame(result, columns=["Number", "Password", "Result"])
+output = pd.DataFrame(result, columns=["Number", "Result"])
 output.to_excel("output.xlsx")
